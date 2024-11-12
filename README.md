@@ -16,8 +16,43 @@ time. It supports:
 
 ## Install
 
+Add or update this library as a dependency in your zig project run the following command:
+
+```sh
+zig fetch --save git+https://github.com/nilslice/zig-interface
 ```
-TODO
+
+Afterwards add the library as a dependency to any module in your _build.zig_:
+
+```zig
+// ...
+const interface_dependency = b.dependency("interface", .{
+    .target = target,
+    .optimize = optimize,
+});
+
+const exe = b.addExecutable(.{
+    .name = "main",
+    .root_source_file = b.path("src/main.zig"),
+    .target = target,
+    .optimize = optimize,
+});
+// import the exposed `interface` module from the dependency
+exe.root_module.addImport("interface", interface_dependency.module("interface"));
+// ...
+```
+
+In the end you can import the `interface` module. For example:
+
+```zig
+const Interface = @import("interface").Interface;
+
+const Repository = Interface(.{
+    .create = fn(anytype, User) anyerror!u32,
+    .findById = fn(anytype, u32) anyerror!?User,
+    .update = fn(anytype, User) anyerror!void,
+    .delete = fn(anytype, u32) anyerror!void,
+}, null);
 ```
 
 ## Usage
