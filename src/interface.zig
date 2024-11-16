@@ -12,8 +12,8 @@ fn isTypeCompatible(comptime T1: type, comptime T2: type) bool {
     if (@intFromEnum(info1) != @intFromEnum(info2)) return false;
 
     return switch (info1) {
-        .Struct => |s1| blk: {
-            const s2 = @typeInfo(T2).Struct;
+        .@"struct" => |s1| blk: {
+            const s2 = @typeInfo(T2).@"struct";
             if (s1.fields.len != s2.fields.len) break :blk false;
             if (s1.is_tuple != s2.is_tuple) break :blk false;
 
@@ -23,8 +23,8 @@ fn isTypeCompatible(comptime T1: type, comptime T2: type) bool {
             }
             break :blk true;
         },
-        .Enum => |e1| blk: {
-            const e2 = @typeInfo(T2).Enum;
+        .@"enum" => |e1| blk: {
+            const e2 = @typeInfo(T2).@"enum";
             if (e1.fields.len != e2.fields.len) break :blk false;
 
             for (e1.fields, e2.fields) |f1, f2| {
@@ -33,20 +33,20 @@ fn isTypeCompatible(comptime T1: type, comptime T2: type) bool {
             }
             break :blk true;
         },
-        .Array => |a1| blk: {
-            const a2 = @typeInfo(T2).Array;
+        .array => |a1| blk: {
+            const a2 = @typeInfo(T2).array;
             if (a1.len != a2.len) break :blk false;
             break :blk isTypeCompatible(a1.child, a2.child);
         },
-        .Pointer => |p1| blk: {
-            const p2 = @typeInfo(T2).Pointer;
+        .pointer => |p1| blk: {
+            const p2 = @typeInfo(T2).pointer;
             if (p1.size != p2.size) break :blk false;
             if (p1.is_const != p2.is_const) break :blk false;
             if (p1.is_volatile != p2.is_volatile) break :blk false;
             break :blk isTypeCompatible(p1.child, p2.child);
         },
-        .Optional => |o1| blk: {
-            const o2 = @typeInfo(T2).Optional;
+        .optional => |o1| blk: {
+            const o2 = @typeInfo(T2).optional;
             break :blk isTypeCompatible(o1.child, o2.child);
         },
         else => T1 == T2,
@@ -59,7 +59,7 @@ fn generateTypeHint(comptime expected: type, comptime got: type) ?[]const u8 {
     const got_info = @typeInfo(got);
 
     // Check for common slice constness issues
-    if (exp_info == .Pointer and got_info == .Pointer) {
+    if (exp_info == .pointer and got_info == .pointer) {
         const exp_ptr = exp_info.Pointer;
         const got_ptr = got_info.Pointer;
         if (exp_ptr.is_const and !got_ptr.is_const) {
@@ -68,20 +68,20 @@ fn generateTypeHint(comptime expected: type, comptime got: type) ?[]const u8 {
     }
 
     // Check for optional vs non-optional mismatches
-    if (exp_info == .Optional and got_info != .Optional) {
+    if (exp_info == .optional and got_info != .optional) {
         return "The expected type is optional. Consider wrapping the parameter in '?'";
     }
-    if (exp_info != .Optional and got_info == .Optional) {
+    if (exp_info != .optional and got_info == .optional) {
         return "The expected type is non-optional. Remove the '?' from the parameter type";
     }
 
     // Check for enum type mismatches
-    if (exp_info == .Enum and got_info == .Enum) {
+    if (exp_info == .@"enum" and got_info == .@"enum") {
         return "Check that the enum values and field names match exactly";
     }
 
     // Check for struct field mismatches
-    if (exp_info == .Struct and got_info == .Struct) {
+    if (exp_info == .@"struct" and got_info == .@"struct") {
         const exp_s = exp_info.Struct;
         const got_s = got_info.Struct;
         if (exp_s.fields.len != got_s.fields.len) {
@@ -92,7 +92,7 @@ fn generateTypeHint(comptime expected: type, comptime got: type) ?[]const u8 {
     }
 
     // Generic catch-all for pointer size mismatches
-    if (exp_info == .Pointer and got_info == .Pointer) {
+    if (exp_info == .pointer and got_info == .pointer) {
         const exp_ptr = exp_info.Pointer;
         const got_ptr = got_info.Pointer;
         if (exp_ptr.size != got_ptr.size) {
@@ -170,8 +170,8 @@ fn formatTypeMismatch(
 ///
 pub fn Interface(comptime methods: anytype, comptime embedded: anytype) type {
     const embedded_interfaces = switch (@typeInfo(@TypeOf(embedded))) {
-        .Null => embedded,
-        .Struct => |s| if (s.is_tuple) embedded else .{embedded},
+        .null => embedded,
+        .@"struct" => |s| if (s.is_tuple) embedded else .{embedded},
         else => .{embedded},
     };
 
@@ -325,12 +325,12 @@ pub fn Interface(comptime methods: anytype, comptime embedded: anytype) type {
             const exp_info = @typeInfo(Expected);
             const act_info = @typeInfo(Actual);
 
-            if (exp_info != .ErrorUnion or act_info != .ErrorUnion) {
+            if (exp_info != .error_union or act_info != .error_union) {
                 return Expected == Actual;
             }
 
-            if (exp_info.ErrorUnion.error_set == anyerror) {
-                return exp_info.ErrorUnion.payload == act_info.ErrorUnion.payload;
+            if (exp_info.error_union.error_set == anyerror) {
+                return exp_info.error_union.payload == act_info.error_union.payload;
             }
             return Expected == Actual;
         }
@@ -366,8 +366,8 @@ pub fn Interface(comptime methods: anytype, comptime embedded: anytype) type {
                     const impl_fn = @TypeOf(@field(Type, field.name));
                     const expected_fn = @field(methods, field.name);
 
-                    const impl_info = @typeInfo(impl_fn).Fn;
-                    const expected_info = @typeInfo(expected_fn).Fn;
+                    const impl_info = @typeInfo(impl_fn).@"fn";
+                    const expected_info = @typeInfo(expected_fn).@"fn";
 
                     if (impl_info.params.len != expected_info.params.len) {
                         problems = problems ++ &[_]Incompatibility{.{
